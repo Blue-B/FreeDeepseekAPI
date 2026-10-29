@@ -2258,6 +2258,15 @@ function collectJsonToolCalls(text) {
         absorbJsonToolPayload(fence[2].trim(), calls, seen);
     }
 
+    // Web DeepSeek sometimes wraps a bare {"name","arguments"} call in <｜tool_call>...</tool_call>
+    // (fullwidth bar). Without this the markup reaches the client as plain text.
+    const xmlRe = /<\s*[|｜]*\s*tool_call\s*[|｜]*\s*>([\s\S]*?)<\s*\/\s*[|｜]*\s*tool_call\s*[|｜]*\s*>/gi;
+    let xml;
+    while ((xml = xmlRe.exec(value)) !== null) {
+        try { rememberToolCall(calls, seen, coerceToolCallObject(JSON.parse(xml[1].trim()), { allowBare: true })); }
+        catch (e) { /* malformed block is left to markup repair */ }
+    }
+
     const legacyRe = /TOOL_CALL:\s*([\w-]+)\s*/gi;
     let legacy;
     while ((legacy = legacyRe.exec(value)) !== null) {
@@ -2295,7 +2304,7 @@ function collectAgentToolCalls(text, allowedToolNames) {
 }
 
 function looksLikeToolCallMarkup(text) {
-    return /TOOL_CALL:\s*[\w-]+|<\s*tool_call\b|[|｜]+\s*DSML\s*[|｜]+|[<＜]\s*\/?\s*(?:DSML)?(?:[\w.-]+:)?(?:tool[\s_-]*calls|function[\s_-]*calls|invoke)\b|["'](?:tool_call|tool_calls|function_call)["']\s*:/i.test(String(text || ''));
+    return /TOOL_CALL:\s*[\w-]+|<\s*[|｜]*\s*tool_call\b|[|｜]+\s*DSML\s*[|｜]+|[<＜]\s*\/?\s*(?:DSML)?(?:[\w.-]+:)?(?:tool[\s_-]*calls|function[\s_-]*calls|invoke)\b|["'](?:tool_call|tool_calls|function_call)["']\s*:/i.test(String(text || ''));
 }
 
 function looksLikeCodeDumpInsteadOfTool(text) {

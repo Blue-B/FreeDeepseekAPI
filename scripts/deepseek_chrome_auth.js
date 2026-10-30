@@ -26,6 +26,7 @@ const {
     findBrew,
     brewInstallCommand,
     writeCapturedAuth,
+    capturedWasmUrl,
     signInChromeArgs,
     ensurePrivateProfileDir,
     removeProfileSafely,
@@ -262,9 +263,7 @@ async function readPageAuth(cdp) {
         }
     }
 
-    const wasmUrl =
-        (pageState.resources || []).find((u) => /sha3.*\.wasm/.test(u)) ||
-        'https://fe-static.deepseek.com/chat/static/sha3_wasm_bg.7b9ca65ddd.wasm';
+    const wasmUrl = capturedWasmUrl(pageState.resources);
     return {
         token,
         cookie,

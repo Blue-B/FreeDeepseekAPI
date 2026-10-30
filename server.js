@@ -2259,12 +2259,19 @@ function collectJsonToolCalls(text) {
     }
 
     // Web DeepSeek sometimes wraps a bare {"name","arguments"} call in <｜tool_call>...</tool_call>
-    // (fullwidth bar). Without this the markup reaches the client as plain text.
-    const xmlRe = /<\s*[|｜]*\s*tool_call\s*[|｜]*\s*>([\s\S]*?)<\s*\/\s*[|｜]*\s*tool_call\s*[|｜]*\s*>/gi;
+    // (fullwidth bar). Scan for each opening tag and take the next balanced JSON object so a
+    // literal "</tool_call>" inside an argument string or an earlier unclosed tag cannot break it.
+    const xmlRe = /<\s*[|｜]*\s*tool_call\s*[|｜]*\s*>/gi;
     let xml;
     while ((xml = xmlRe.exec(value)) !== null) {
-        try { rememberToolCall(calls, seen, coerceToolCallObject(JSON.parse(xml[1].trim()), { allowBare: true })); }
-        catch (e) { /* malformed block is left to markup repair */ }
+        const braceIdx = value.indexOf('{', xml.index + xml[0].length);
+        if (braceIdx === -1) continue;
+        const rawJson = extractBalancedJsonAt(value, braceIdx);
+        if (!rawJson) continue;
+        try {
+            const parsed = JSON.parse(rawJson);
+            rememberToolCall(calls, seen, coerceToolCallObject(parsed, { allowBare: true }));
+        } catch (e) { /* malformed block is left to markup repair */ }
     }
 
     const legacyRe = /TOOL_CALL:\s*([\w-]+)\s*/gi;
